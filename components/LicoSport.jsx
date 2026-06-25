@@ -74,7 +74,7 @@ const stLabel = (st) => ({out:"AGOTADO", low:"BAJO", ok:"OK"})[st];
 
 // ─── HOOK RESPONSIVE ─────────────────────────────────────────────
 function useIsMobile() {
-  const [mob, setMob] = useState(window.innerWidth < 768);
+  const [mob, setMob] = useState(false);
   useEffect(() => {
     const fn = () => setMob(window.innerWidth < 768);
     window.addEventListener("resize", fn);
