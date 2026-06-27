@@ -123,14 +123,8 @@ function LoginScreen({ onLogin }) {
     }}>
       <div style={{ width:"100%", maxWidth:400 }}>
         {/* Logo */}
-        <div style={{ textAlign:"center", marginBottom:36 }}>
-          <div style={{ fontSize:48, marginBottom:8 }}>🍾</div>
-          <div style={{ fontSize:32, fontWeight:800, letterSpacing:-1 }}>
-            <span style={{ color:T.green }}>Lico</span>
-            <span style={{ color:T.gold }}>Sport</span>
-          </div>
-          <div style={{ color:T.textMid, fontSize:14, marginTop:4 }}>Sistema de Gestión</div>
-        </div>
+        <img src="/logo.png" alt="LicoSport" style={{ width:160, height:160, objectFit:"contain", marginBottom:8 }} />
+          <div style={{ color:T.textMid, fontSize:13, marginTop:4 }}>Sistema de Gestión</div>
 
         <div style={{ background:T.bgWhite, borderRadius:20, padding:28, boxShadow:"0 2px 20px #0000000D", border:`1px solid ${T.border}` }}>
           {step === "role" ? (
@@ -246,7 +240,7 @@ function Sidebar({ role, tab, onTab, onLogout, alertas }) {
       {/* Logo */}
       <div style={{ padding:"24px 20px 16px" }}>
         <div style={{ fontSize:22, fontWeight:800, letterSpacing:-.5 }}>
-          <span style={{ color:T.greenMid }}>Lico</span><span style={{ color:T.gold }}>Sport</span>
+          <img src="/logo.png" alt="LicoSport" style={{ width:44, height:44, objectFit:"contain", borderRadius:10 }} />
         </div>
         <div style={{ color:T.sidebarText+"88", fontSize:11, marginTop:2 }}>Sistema de Gestión</div>
       </div>
@@ -1065,7 +1059,7 @@ export default function LicoSport() {
           {/* Header mobile */}
           <div style={{ background:T.bgWhite, borderBottom:`1px solid ${T.border}`, padding:"12px 18px", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, zIndex:700 }}>
             <div style={{ fontSize:18, fontWeight:800 }}>
-              <span style={{ color:T.green }}>Lico</span><span style={{ color:T.gold }}>Sport</span>
+              <img src="/logo.png" alt="LicoSport" style={{ width:32, height:32, objectFit:"contain", borderRadius:8 }} />
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <span style={{ background:T.greenLight, color:T.greenText, fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20 }}>{ROLES[role].icon} {ROLES[role].label}</span>
