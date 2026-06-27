@@ -543,12 +543,14 @@ function Venta({role,curUser,productos,onConfirmar}) {
   const [carrito,setCarrito]=useState([]);
   const [metodo,setMetodo]=useState("efectivo");
   const [cliente,setCliente]=useState("");
+  const [montoRec,setMontoRec]=useState("");
   const isAdmin=role==="admin";
 
   const disp=productos.filter(p=>p.stock>0&&p.nombre.toLowerCase().includes(busq.toLowerCase()));
   const total=carrito.reduce((s,i)=>s+i.pvPres*i.qty,0);
   const ganT=carrito.reduce((s,i)=>s+(i.pvPres-i.pcPres)*i.qty,0);
   const esCred=metodo==="credito";
+  const cambio=parseFloat(montoRec||0)-total;
 
   const selectProd=async(p)=>{
     setSelProd(p);
@@ -568,9 +570,7 @@ function Venta({role,curUser,productos,onConfirmar}) {
       if(ex) return c.map(i=>i.key===key?{...i,qty:i.qty+1}:i);
       return [...c,{key,prodId:prod.id,nombre:prod.nombre,cat:prod.cat,presentacion:pres.nombre,equivUnids,pcPres:pres.precioCompra||0,pvPres:pres.precioVenta||0,stock:prod.stock,qty:1}];
     });
-    setSelProd(null);
-    setPresentaciones([]);
-    setBusq("");
+    setSelProd(null);setPresentaciones([]);setBusq("");
   };
 
   const less=(key)=>setCarrito(c=>{const ex=c.find(i=>i.key===key);if(!ex||ex.qty<=1)return c.filter(i=>i.key!==key);return c.map(i=>i.key===key?{...i,qty:i.qty-1}:i);});
@@ -583,8 +583,10 @@ function Venta({role,curUser,productos,onConfirmar}) {
 
   const confirmar=()=>{
     if(esCred&&!cliente.trim()){alert("Ingresa el nombre del cliente");return;}
+    if(metodo==="efectivo"&&montoRec&&cambio<0){alert("El monto recibido es insuficiente");return;}
     onConfirmar(carrito,metodo,cliente);
-    setCarrito([]);setBusq("");setCliente("");setMetodo("efectivo");setSelProd(null);setPresentaciones([]);
+    setCarrito([]);setBusq("");setCliente("");setMetodo("efectivo");
+    setSelProd(null);setPresentaciones([]);setMontoRec("");
   };
 
   return (
@@ -640,7 +642,7 @@ function Venta({role,curUser,productos,onConfirmar}) {
         {carrito.length>0&&(
           <div>
             <div style={{color:T.textMid,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:9}}>Carrito ({carrito.length})</div>
-            <div style={{maxHeight:220,overflowY:"auto",marginBottom:11}}>
+            <div style={{maxHeight:200,overflowY:"auto",marginBottom:11}}>
               {carrito.map(i=>(
                 <div key={i.key} style={{marginBottom:7,padding:"9px 11px",background:T.bgWhite,border:`1px solid ${T.border}`,borderRadius:16}}>
                   <div style={{display:"flex",alignItems:"center",gap:7}}>
@@ -659,16 +661,44 @@ function Venta({role,curUser,productos,onConfirmar}) {
                 </div>
               ))}
             </div>
+
+            {/* Método de pago */}
             <div style={{marginBottom:11}}>
               <div style={{color:T.textMid,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Método de pago</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
                 {PAGOS.map(m=>{
                   const sel=metodo===m.id,isC=m.id==="credito";
-                  return <button key={m.id} onClick={()=>setMetodo(m.id)} style={{padding:"8px 9px",borderRadius:10,border:`1.5px solid ${sel?(isC?T.blue:T.green):T.border}`,background:sel?(isC?T.blueLight:T.greenLight):T.bgWhite,color:sel?(isC?T.blue:T.greenText):T.textMid,fontWeight:sel?700:400,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>{m.icon} {m.label}</button>;
+                  return <button key={m.id} onClick={()=>{setMetodo(m.id);setMontoRec("");}} style={{padding:"8px 9px",borderRadius:10,border:`1.5px solid ${sel?(isC?T.blue:T.green):T.border}`,background:sel?(isC?T.blueLight:T.greenLight):T.bgWhite,color:sel?(isC?T.blue:T.greenText):T.textMid,fontWeight:sel?700:400,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>{m.icon} {m.label}</button>;
                 })}
               </div>
             </div>
+
+            {/* Monto recibido — solo efectivo */}
+            {metodo==="efectivo"&&(
+              <div style={{marginBottom:11}}>
+                <div style={{color:T.textMid,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>💵 Monto recibido (Bs)</div>
+                <input type="number" placeholder={`Mínimo ${bs(total)}`} value={montoRec} onChange={e=>setMontoRec(e.target.value)}
+                  style={{width:"100%",padding:"10px 13px",background:T.bgWhite,border:`1.5px solid ${T.border}`,borderRadius:10,color:T.text,fontSize:14,boxSizing:"border-box",fontFamily:"inherit"}}
+                />
+                {montoRec&&cambio>=0&&(
+                  <div style={{background:T.greenLight,borderRadius:10,padding:"10px 14px",marginTop:8,display:"flex",justifyContent:"space-between",alignItems:"center",border:`1px solid ${T.border}`}}>
+                    <span style={{color:T.greenText,fontWeight:600,fontSize:14}}>💰 Cambio a dar</span>
+                    <span style={{color:T.green,fontWeight:900,fontFamily:"monospace",fontSize:22}}>{bs(cambio)}</span>
+                  </div>
+                )}
+                {montoRec&&cambio<0&&(
+                  <div style={{background:T.redLight,borderRadius:10,padding:"10px 14px",marginTop:8,display:"flex",justifyContent:"space-between",alignItems:"center",border:`1px solid ${T.red}44`}}>
+                    <span style={{color:T.red,fontWeight:600,fontSize:14}}>⚠️ Falta</span>
+                    <span style={{color:T.red,fontWeight:900,fontFamily:"monospace",fontSize:22}}>{bs(Math.abs(cambio))}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Cliente crédito */}
             {esCred&&<input placeholder="👤 Nombre del cliente (requerido)" value={cliente} onChange={e=>setCliente(e.target.value)} style={{width:"100%",padding:"10px 13px",background:T.blueLight,border:`1.5px solid ${T.blue}44`,borderRadius:10,color:T.text,fontSize:13,boxSizing:"border-box",marginBottom:11,fontFamily:"inherit"}}/>}
+
+            {/* Total */}
             <div style={{background:esCred?T.blueLight:T.greenLight,borderRadius:16,border:`1px solid ${T.border}`,padding:"15px 17px",marginBottom:12}}>
               {isAdmin&&<div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{color:T.textMid,fontSize:12}}>Ganancia estimada</span><span style={{color:T.gold,fontWeight:700,fontFamily:"monospace"}}>{bs(ganT)}</span></div>}
               <div style={{display:"flex",justifyContent:"space-between"}}>
@@ -677,6 +707,7 @@ function Venta({role,curUser,productos,onConfirmar}) {
               </div>
               {esCred&&<div style={{color:T.blue,fontSize:11,marginTop:4}}>📋 Se registrará como crédito pendiente</div>}
             </div>
+
             <button onClick={confirmar} style={{width:"100%",padding:14,background:esCred?T.blue:T.green,color:"#fff",border:"none",borderRadius:12,fontWeight:800,fontSize:15,cursor:"pointer"}}>
               {esCred?`📋 Registrar crédito · ${bs(total)}`:`✅ Confirmar venta · ${bs(total)}`}
             </button>
@@ -1018,4 +1049,4 @@ export default function LicoSport() {
       <style>{`*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}input,button,select{font-family:inherit}input:focus,select:focus{outline:2px solid ${T.green};outline-offset:1px}`}</style>
     </div>
   );
-}
+} 
