@@ -136,8 +136,7 @@ function Login({onLogin}) {
     const pin=d.join("");
     if(isAdmin){
       const r=await api("/auth/pin",{method:"POST",body:{pin}});
-      if(r?.access_token){localStorage.setItem("ls_tok",r.access_token);onLogin("admin",{nombre:"Administrador",color:T.green,icon:"👑"});}
-      else fail();
+      if(r?.access_token){window.localStorage.setItem("ls_tok",r.access_token);onLogin("admin",{nombre:"Administrador",color:T.green,icon:"👑"});}      else fail();
     } else {
       const r=await api("/vendedores/login",{method:"POST",body:{pin}});
       if(r?.id)onLogin("vendedor",{...r,icon:"🛒"});
