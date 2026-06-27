@@ -591,13 +591,13 @@ function Venta({role,curUser,productos,onConfirmar}) {
   const esCred=metodo==="credito";
 
   // Al seleccionar producto, cargar presentaciones
-  const selectProd=async(p)=>{
+const selectProd=async(p)=>{
     setSelProd(p);setBusq(p.nombre);
+    // Siempre mostrar al menos la presentación por defecto inmediatamente
+    setPresentaciones([{id:"default",nombre:"Unidad",equivaleUnidades:1,precioCompra:p.pc,precioVenta:p.pv}]);
+    // Intentar cargar presentaciones del backend
     const pres=await getPresentaciones(p.id);
-    // Si no tiene presentaciones en BD, crear una por defecto con los precios del producto
-    if(!pres||pres.length===0){
-      setPresentaciones([{id:"default",nombre:"Unidad",equivaleUnidades:1,precioCompra:p.pc,precioVenta:p.pv}]);
-    } else {
+    if(pres&&pres.length>0){
       setPresentaciones(pres);
     }
   };
