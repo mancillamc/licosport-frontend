@@ -1059,7 +1059,7 @@ export default function LicoSport() {
           {/* Header mobile */}
           <div style={{ background:T.bgWhite, borderBottom:`1px solid ${T.border}`, padding:"12px 18px", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, zIndex:700 }}>
             <div style={{ fontSize:18, fontWeight:800 }}>
-              <img src="/logo.png" alt="LicoSport" style={{ width:32, height:32, objectFit:"contain", borderRadius:8 }} />
+              <img src="/logo.png" alt="LicoSport" style={{ width:160, height:160, objectFit:"contain", marginBottom:8, display:"block", margin:"0 auto 8px" }} />
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <span style={{ background:T.greenLight, color:T.greenText, fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20 }}>{ROLES[role].icon} {ROLES[role].label}</span>
