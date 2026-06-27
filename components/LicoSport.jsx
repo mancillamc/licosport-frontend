@@ -394,7 +394,7 @@ function ModalProd({prod,isMob,onClose,onSave}) {
 
 const COLORS_V=["#1A7A4A","#1A5EA8","#8B1A8B","#C0392B","#B8860B","#1A6A8A","#2C7A2C","#8B4A1A"];
 function ModalVendedor({vend,onClose,onSave}) {
-  const [f,setF]=useState(vend??{nombre:"",pin:"",color:COLORS_V[0],turno:""});
+  const [f,setF]=useState({nombre:vend?.nombre||"",pin:"",color:vend?.color||COLORS_V[0],turno:vend?.turno||"",...(vend?.id?{id:vend.id}:{})});
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const initials=(n)=>n.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
   const handleSave=()=>{ if(f.nombre.trim()&&f.pin.length===4) onSave(f); };
