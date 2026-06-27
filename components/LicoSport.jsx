@@ -439,7 +439,7 @@ function ModalVendedor({vend,onClose,onSave}) {
       <Fld label="Turno / nota (opcional)" value={f.turno} onChange={e=>set("turno",e.target.value)}/>
       <div style={{display:"flex",gap:9}}>
         <button onClick={onClose} style={{flex:1,padding:12,background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Cancelar</button>
-        <button onClick={()=>f.nombre.trim()&&f.pin.length===4&&onSave(f)} style={{flex:2,padding:12,background:f.nombre.trim()&&f.pin.length===4?T.green:T.borderMid,color:"#fff",border:"none",borderRadius:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+        <button onClick={()=>{ if(f.nombre.trim()&&f.pin.length===4) onSave(f); }} style={{flex:2,padding:12,background:f.nombre.trim()&&f.pin.length===4?T.green:T.borderMid,color:"#fff",border:"none",borderRadius:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
           {vend?"Guardar cambios":"Crear vendedor"}
         </button>
       </div>
@@ -578,7 +578,7 @@ function Inventario({productos,onEditar,onEliminar,onNuevo,onPresentaciones}) {
 // VENTA con presentaciones
 function Venta({role,curUser,productos,onConfirmar}) {
   const [busq,setBusq]=useState("");
-  const [selProd,setSelProd]=useState(null); // producto seleccionado
+  const [selProd,setSelProd]=useState(null);
   const [presentaciones,setPresentaciones]=useState([]);
   const [carrito,setCarrito]=useState([]);
   const [metodo,setMetodo]=useState("efectivo");
@@ -590,39 +590,45 @@ function Venta({role,curUser,productos,onConfirmar}) {
   const ganT=carrito.reduce((s,i)=>s+(i.pvPres-i.pcPres)*i.qty,0);
   const esCred=metodo==="credito";
 
-  // Al seleccionar producto, cargar presentaciones
-const selectProd=async(p)=>{
-    setSelProd(p);setBusq(p.nombre);
-    // Siempre mostrar al menos la presentación por defecto inmediatamente
-    setPresentaciones([{id:"default",nombre:"Unidad",equivaleUnidades:1,precioCompra:p.pc,precioVenta:p.pv}]);
-    // Intentar cargar presentaciones del backend
+  const selectProd=async(p)=>{
+    setSelProd(p);
+    setBusq(p.nombre);
+    const defecto=[{id:"default",nombre:"Unidad",equivaleUnidades:1,precioCompra:p.pc||0,precioVenta:p.pv||0}];
+    setPresentaciones(defecto);
     const pres=await getPresentaciones(p.id);
-    if(pres&&pres.length>0){
-      setPresentaciones(pres);
-    }
+    if(pres&&pres.length>0) setPresentaciones(pres);
   };
 
-  const addToCart=(prod,pres,qty=1)=>{
-    const key=`${prod.id}-${pres.id}`;
+  const addToCart=(prod,pres)=>{
+    const key=`${prod.id}_${pres.id}`;
+    const unidsNuevas=pres.equivaleUnidades||1;
+    const unidsEnCarrito=carrito.filter(i=>i.prodId===prod.id).reduce((s,i)=>s+i.qty*(i.equivUnids||1),0);
+    if(unidsEnCarrito+unidsNuevas>prod.stock) return;
     setCarrito(c=>{
       const ex=c.find(i=>i.key===key);
-      // Verificar stock disponible (en unidades)
-      const unidsEnCarrito=c.filter(i=>i.prodId===prod.id).reduce((s,i)=>s+i.qty*i.equivUnids,0);
-      const unidsAgregar=qty*pres.equivaleUnidades;
-      if(unidsEnCarrito+unidsAgregar>prod.stock)return c;
-      if(ex)return c.map(i=>i.key===key?{...i,qty:i.qty+qty}:i);
-      return[...c,{key,prodId:prod.id,nombre:prod.nombre,cat:prod.cat,presentacion:pres.nombre,equivUnids:pres.equivaleUnidades,pcPres:pres.precioCompra,pvPres:pres.precioVenta,stock:prod.stock,qty}];
+      if(ex) return c.map(i=>i.key===key?{...i,qty:i.qty+1}:i);
+      return[...c,{
+        key,prodId:prod.id,nombre:prod.nombre,cat:prod.cat,
+        presentacion:pres.nombre,equivUnids:pres.equivaleUnidades||1,
+        pcPres:pres.precioCompra||0,pvPres:pres.precioVenta||0,
+        stock:prod.stock,qty:1
+      }];
     });
     setSelProd(null);setPresentaciones([]);setBusq("");
   };
 
-  const less=(key)=>setCarrito(c=>{const ex=c.find(i=>i.key===key);if(!ex||ex.qty<=1)return c.filter(i=>i.key!==key);return c.map(i=>i.key===key?{...i,qty:i.qty-1}:i);});
+  const less=(key)=>setCarrito(c=>{
+    const ex=c.find(i=>i.key===key);
+    if(!ex||ex.qty<=1) return c.filter(i=>i.key!==key);
+    return c.map(i=>i.key===key?{...i,qty:i.qty-1}:i);
+  });
   const rem=(key)=>setCarrito(c=>c.filter(i=>i.key!==key));
 
   const confirmar=()=>{
     if(esCred&&!cliente.trim()){alert("Ingresa el nombre del cliente");return;}
     onConfirmar(carrito,metodo,cliente);
-    setCarrito([]);setBusq("");setCliente("");setMetodo("efectivo");setSelProd(null);setPresentaciones([]);
+    setCarrito([]);setBusq("");setCliente("");setMetodo("efectivo");
+    setSelProd(null);setPresentaciones([]);
   };
 
   return(
@@ -630,15 +636,14 @@ const selectProd=async(p)=>{
       <div style={{color:T.text,fontWeight:800,fontSize:19,marginBottom:16}}>🛒 Nueva Venta</div>
       <div style={{display:"grid",gridTemplateColumns:carrito.length>0?"1fr 1fr":"1fr",gap:16}}>
         <div>
-          {/* Paso 1: buscar producto */}
           {!selProd&&(
             <>
-              <input placeholder="🔍 Buscar producto..." value={busq} onChange={e=>{setBusq(e.target.value);setSelProd(null);setPresentaciones([]);}}
+              <input placeholder="🔍 Buscar producto..." value={busq} onChange={e=>{setBusq(e.target.value);}}
                 style={{width:"100%",padding:"10px 13px",background:T.bgWhite,border:`1.5px solid ${T.border}`,borderRadius:10,color:T.text,fontSize:13,boxSizing:"border-box",marginBottom:9,fontFamily:"inherit"}}
               />
               <div style={{maxHeight:380,overflowY:"auto"}}>
                 {busq&&disp.map(p=>(
-                  <Card key={p.id} style={{marginBottom:7,padding:"11px 13px",cursor:"pointer",border:`1.5px solid ${T.border}`}} onClick={()=>selectProd(p)}>
+                  <Card key={p.id} style={{marginBottom:7,padding:"11px 13px",cursor:"pointer"}} onClick={()=>selectProd(p)}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div><div style={{color:T.text,fontWeight:600,fontSize:13}}>{catIcon(p.cat)} {p.nombre}</div><div style={{color:T.textMid,fontSize:11}}>Stock: {p.stock} {p.u}</div></div>
                       <div style={{textAlign:"right"}}><div style={{color:T.green,fontWeight:800,fontFamily:"monospace"}}>{bs(p.pv)}</div><div style={{color:T.textMid,fontSize:10}}>Toca para elegir presentación</div></div>
@@ -651,25 +656,24 @@ const selectProd=async(p)=>{
             </>
           )}
 
-          {/* Paso 2: elegir presentación */}
           {selProd&&(
             <div>
               <button onClick={()=>{setSelProd(null);setPresentaciones([]);setBusq("");}} style={{background:"none",border:"none",color:T.textMid,cursor:"pointer",fontSize:13,marginBottom:12,padding:0}}>‹ Cambiar producto</button>
               <Card style={{marginBottom:12,background:T.greenLight}}>
                 <div style={{color:T.greenText,fontWeight:700,fontSize:14}}>{catIcon(selProd.cat)} {selProd.nombre}</div>
-                <div style={{color:T.textMid,fontSize:11,marginTop:2}}>Stock disponible: {selProd.stock} {selProd.u}</div>
+                <div style={{color:T.textMid,fontSize:11,marginTop:2}}>Stock: {selProd.stock} {selProd.u}</div>
               </Card>
-              <div style={{color:T.textMid,fontSize:12,fontWeight:600,marginBottom:9}}>Selecciona la presentación:</div>
+              <div style={{color:T.textMid,fontSize:12,fontWeight:600,marginBottom:9}}>Elige la presentación:</div>
               {presentaciones.map(pres=>(
-                <Card key={pres.id} style={{marginBottom:9,cursor:"pointer",border:`1.5px solid ${T.border}`}} onClick={()=>addToCart(selProd,pres)}>
+                <Card key={pres.id} style={{marginBottom:9,cursor:"pointer"}} onClick={()=>addToCart(selProd,pres)}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
                       <div style={{color:T.text,fontWeight:700,fontSize:14}}>{pres.nombre}</div>
-                      <div style={{color:T.textMid,fontSize:11,marginTop:2}}>× {pres.equivaleUnidades} unidad{pres.equivaleUnidades>1?"es":""} · Compra: {bs(pres.precioCompra)}</div>
+                      <div style={{color:T.textMid,fontSize:11,marginTop:2}}>× {pres.equivaleUnidades||1} unidad{(pres.equivaleUnidades||1)>1?"es":""}</div>
                     </div>
                     <div style={{textAlign:"right"}}>
                       <div style={{color:T.green,fontWeight:900,fontFamily:"monospace",fontSize:16}}>{bs(pres.precioVenta)}</div>
-                      <div style={{color:T.gold,fontSize:10}}>+{bs(pres.precioVenta-pres.precioCompra)} gan.</div>
+                      <div style={{color:T.gold,fontSize:10}}>+{bs((pres.precioVenta||0)-(pres.precioCompra||0))} gan.</div>
                     </div>
                   </div>
                 </Card>
@@ -678,7 +682,6 @@ const selectProd=async(p)=>{
           )}
         </div>
 
-        {/* Carrito */}
         {carrito.length>0&&(
           <div>
             <div style={{color:T.textMid,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:9}}>Carrito ({carrito.length})</div>
@@ -688,35 +691,32 @@ const selectProd=async(p)=>{
                   <div style={{display:"flex",alignItems:"center",gap:7}}>
                     <div style={{flex:1}}>
                       <div style={{color:T.text,fontSize:12,fontWeight:600}}>{i.nombre}</div>
-                      <div style={{color:T.textMid,fontSize:10}}>{i.presentacion} · ×{i.equivUnids} ud. c/u</div>
+                      <div style={{color:T.textMid,fontSize:10}}>{i.presentacion}</div>
                       <div style={{color:T.green,fontFamily:"monospace",fontSize:11}}>{bs(i.pvPres)} × {i.qty} = {bs(i.pvPres*i.qty)}</div>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:4}}>
-                      <button onClick={()=>less(i.key)} style={{width:26,height:26,borderRadius:"50%",background:T.bgSurface,border:`1px solid ${T.border}`,color:T.text,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>−</button>
-                      <span style={{color:T.text,fontWeight:700,minWidth:16,textAlign:"center",fontSize:12}}>{i.qty}</span>
-                      <button onClick={()=>addToCart({id:i.prodId,nombre:i.nombre,cat:i.cat,stock:i.stock,pc:i.pcPres,pv:i.pvPres,u:"und."},{id:i.key.split("-")[1],nombre:i.presentacion,equivaleUnidades:i.equivUnids,precioCompra:i.pcPres,precioVenta:i.pvPres})} style={{width:26,height:26,borderRadius:"50%",background:T.bgSurface,border:`1px solid ${T.border}`,color:T.green,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>+</button>
-                      <button onClick={()=>rem(i.key)} style={{width:26,height:26,borderRadius:"50%",background:T.redLight,border:"none",color:T.red,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>×</button>
+                      <button onClick={()=>less(i.key)} style={{width:26,height:26,borderRadius:"50%",background:T.bgSurface,border:`1px solid ${T.border}`,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                      <span style={{fontWeight:700,minWidth:16,textAlign:"center",fontSize:12}}>{i.qty}</span>
+                      <button onClick={()=>setCarrito(c=>{const ex=c.find(x=>x.key===i.key);if(!ex)return c;const unidsTotal=c.filter(x=>x.prodId===ex.prodId).reduce((s,x)=>s+x.qty*(x.equivUnids||1),0);if(unidsTotal+(ex.equivUnids||1)>ex.stock)return c;return c.map(x=>x.key===i.key?{...x,qty:x.qty+1}:x);})} style={{width:26,height:26,borderRadius:"50%",background:T.bgSurface,border:`1px solid ${T.border}`,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:T.green}}>+</button>
+                      <button onClick={()=>rem(i.key)} style={{width:26,height:26,borderRadius:"50%",background:T.redLight,border:"none",color:T.red,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
                     </div>
                   </div>
                 </Card>
               ))}
             </div>
-
             <div style={{marginBottom:11}}>
               <div style={{color:T.textMid,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Método de pago</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
                 {PAGOS.map(m=>(
-                  <button key={m.id} onClick={()=>setMetodo(m.id)} style={{padding:"8px 9px",borderRadius:10,border:`1.5px solid ${metodo===m.id?(m.id==="credito"?T.blue:T.green):T.border}`,background:metodo===m.id?(m.id==="credito"?T.blueLight:T.greenLight):T.bgWhite,color:metodo===m.id?(m.id==="credito"?T.blue:T.greenText):T.textMid,fontWeight:metodo===m.id?700:400,fontSize:12,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:5}}>{m.icon} {m.label}</button>
+                  <button key={m.id} onClick={()=>setMetodo(m.id)} style={{padding:"8px 9px",borderRadius:10,border:`1.5px solid ${metodo===m.id?(m.id==="credito"?T.blue:T.green):T.border}`,background:metodo===m.id?(m.id==="credito"?T.blueLight:T.greenLight):T.bgWhite,color:metodo===m.id?(m.id==="credito"?T.blue:T.greenText):T.textMid,fontWeight:metodo===m.id?700:400,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>{m.icon} {m.label}</button>
                 ))}
               </div>
             </div>
-
             {esCred&&(
               <input placeholder="👤 Nombre del cliente (requerido)" value={cliente} onChange={e=>setCliente(e.target.value)}
                 style={{width:"100%",padding:"10px 13px",background:T.blueLight,border:`1.5px solid ${T.blue}44`,borderRadius:10,color:T.text,fontSize:13,boxSizing:"border-box",marginBottom:11,fontFamily:"inherit"}}
               />
             )}
-
             <Card style={{background:esCred?T.blueLight:T.greenLight,marginBottom:12}}>
               {isAdmin&&<div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{color:T.textMid,fontSize:12}}>Ganancia estimada</span><span style={{color:T.gold,fontWeight:700,fontFamily:"monospace"}}>{bs(ganT)}</span></div>}
               <div style={{display:"flex",justifyContent:"space-between"}}>
@@ -725,8 +725,7 @@ const selectProd=async(p)=>{
               </div>
               {esCred&&<div style={{color:T.blue,fontSize:11,marginTop:4}}>📋 Se registrará como crédito pendiente</div>}
             </Card>
-
-            <button onClick={confirmar} style={{width:"100%",padding:14,background:esCred?T.blue:T.green,color:"#fff",border:"none",borderRadius:12,fontWeight:800,fontSize:15,cursor:"pointer",fontFamily:"inherit"}}>
+            <button onClick={confirmar} style={{width:"100%",padding:14,background:esCred?T.blue:T.green,color:"#fff",border:"none",borderRadius:12,fontWeight:800,fontSize:15,cursor:"pointer"}}>
               {esCred?`📋 Registrar crédito · ${bs(total)}`:`✅ Confirmar venta · ${bs(total)}`}
             </button>
           </div>
