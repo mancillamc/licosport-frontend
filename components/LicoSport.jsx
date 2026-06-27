@@ -58,9 +58,9 @@ const stColor = (s) => ({out:T.red,low:T.gold,ok:T.greenMid})[s];
 const stLabel = (s) => ({out:"AGOTADO",low:"BAJO",ok:"OK"})[s];
 
 // ─── API ──────────────────────────────────────────────────────────
-async function api(path, opts={}) {
+async function api(path, opts={}, ctx={}) {
   try {
-    const token = typeof window!=="undefined"?localStorage.getItem("ls_tok"):null;
+    const token = ctx.token || (typeof window!=="undefined"?localStorage.getItem("ls_tok"):null);
     const res = await fetch(`${API_URL}${path}`,{
       ...opts,
       headers:{"Content-Type":"application/json",...(token?{Authorization:`Bearer ${token}`}:{}),...opts.headers},
@@ -134,14 +134,17 @@ function Login({onLogin}) {
   const verify=async(d)=>{
     setLoading(true);
     const pin=d.join("");
-    if(isAdmin){
-      const r=await api("/auth/pin",{method:"POST",body:{pin}});
-      if(r?.access_token){window.localStorage.setItem("ls_tok",r.access_token);onLogin("admin",{nombre:"Administrador",color:T.green,icon:"👑"});}      else fail();
-    } else {
-      const r=await api("/vendedores/login",{method:"POST",body:{pin}});
-      if(r?.id)onLogin("vendedor",{...r,icon:"🛒"});
-      else fail();
-    }
+   if(isAdmin){
+  const r=await api("/auth/pin",{method:"POST",body:{pin}});
+  if(r?.access_token){
+    window.localStorage.setItem("ls_tok",r.access_token);
+    onLogin("admin",{nombre:"Administrador",color:T.green,icon:"👑"},r.access_token);
+  } else fail();
+} else {
+  const r=await api("/vendedores/login",{method:"POST",body:{pin}});
+  if(r?.id)onLogin("vendedor",{...r,icon:"🛒"});
+  else fail();
+}
     setLoading(false);
   };
   const fail=()=>{setShake(true);setErr("PIN incorrecto");setTimeout(()=>{setShake(false);setDigits([]);setErr("");},900);};
@@ -972,11 +975,12 @@ export default function LicoSport() {
   const credPend=creditos.filter(c=>!c.pagado).length;
   const showToast=(msg,type="success")=>setToast({msg,type});
 
-  const handleLogin=useCallback(async(r,user)=>{
-    setRole(r);setCurUser(user);setTab("home");
-    const data=await api("/productos");
-    if(data?.length){setProductos(data);setApiOk(true);}
-  },[]);
+const handleLogin=useCallback(async(r,user,token)=>{
+  setRole(r);setCurUser(user);setTab("home");
+  const tok=token||localStorage.getItem("ls_tok");
+  const data=await fetch(`${API_URL}/productos`,{headers:{Authorization:`Bearer ${tok}`,"Content-Type":"application/json"}}).then(r=>r.ok?r.json():null).catch(()=>null);
+  if(data?.length){setProductos(data);setApiOk(true);}
+},[]);
 
   const guardarProd=async(f)=>{
     if(f.id){
