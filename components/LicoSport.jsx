@@ -939,7 +939,7 @@ export default function LicoSport() {
   const [role,setRole]=useState(null);
   const [curUser,setCurUser]=useState(null);
   const [tab,setTab]=useState("home");
-  const [productos,setProductos]=useState(DEMO);
+  const [productos,setProductos]=useState([]);;
   const [ventas,setVentas]=useState([]);
   const [creditos,setCreditos]=useState([]);
   const [modalProd,setModalProd]=useState(null);
